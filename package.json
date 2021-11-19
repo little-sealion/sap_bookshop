@@ -23,7 +23,7 @@
     },
     "scripts": {
         "start": "cds run",
-        "test": "jest --watchAll"
+        "test": "jest test"
     },
     "eslintConfig": {
         "extends": "eslint:recommended",

@@ -4,7 +4,9 @@ const baseUrl =
   'https://my-bookshop-srv-shiny-mouse-nf.cfapps.us10.hana.ondemand.com/catalog';
 
 describe.only('CRUD Order test', () => {
+  // if we post an order with invalid UUID, it should return error code 400
   it('POST /Orders with UUID (invalid UUID) --> req error ( 400,Invalid Value)', () => {
+    // using uuidv4 to create a UUID, then slice it to get an invalid UUID
     const ID = uuidv4().slice(0, 30);
     const book_ID = 251;
     const amount = 1;
@@ -22,6 +24,8 @@ describe.only('CRUD Order test', () => {
       });
   });
 
+  // if we post an order with valid UUID, it should return success code 201, and return the order created, it
+  // should be an object contains ID, book_ID, amount fields
   it('POST /Orders with UUID (valid UUID) --> created order', async () => {
     const ID = uuidv4();
     const book_ID = 251;
@@ -44,14 +48,18 @@ describe.only('CRUD Order test', () => {
     );
   });
 
+  // if we post an order with the same UUID for second time, it should return error code 400, with message
+  // 'Entity already exists'
   it('POST /Orders with UUID (repeat valid UUID) --> 400, Entity already exists', async () => {
+    // create the uuid
     const ID = uuidv4();
     const book_ID = 251;
     const amount = 1;
-
+    //post the order for the first time
     await request(baseUrl).post('/Orders').send({ ID, book_ID, amount }); //use the uuid first time
 
-    const res = await request(baseUrl) //use the uuid second time
+    // post the order for the second time with the same uuid
+    const res = await request(baseUrl)
       .post('/Orders')
       .send({ ID, book_ID, amount });
 
@@ -62,12 +70,9 @@ describe.only('CRUD Order test', () => {
         message: 'Entity already exists',
       }),
     });
-
-    expect(ID).toMatch(
-      /\b[0-9a-f]{8}\b-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-\b[0-9a-f]{12}\b/
-    );
   });
 
+  // post an order with invalid data, the stock of that product should decrease accordingly
   it('POST /Orders with UUID --> created order ', async () => {
     const ID = uuidv4();
     const book_ID = 252;
@@ -77,6 +82,7 @@ describe.only('CRUD Order test', () => {
     const res1 = await request(baseUrl).get(`/Books(${book_ID})`);
     const { stock } = res1.body;
 
+    // if the product stock is larger than the post amount, it should return sucess code 201, and return the created order object
     if (stock >= amount) {
       const res2 = await request(baseUrl).post('/Orders').send({
         ID,
@@ -85,12 +91,12 @@ describe.only('CRUD Order test', () => {
       });
 
       expect(res2.statusCode).toBe(201);
-
+      // if the order post sucessfully, the product stock should decrease accordingly
       expect(res2.body).toEqual(
         expect.objectContaining({
           ID,
           book_ID,
-          amount, //if stock lasts, return created order , otherwise return sold out
+          amount,
         })
       );
 
@@ -99,6 +105,7 @@ describe.only('CRUD Order test', () => {
 
       expect(stock - updatedStock).toEqual(amount);
     } else {
+      // if the product stock is less than the post amount, it should return error code 409 with message 'Sold out, sorry'
       return request(baseUrl)
         .post('/Orders')
         .send({ ID, book_ID, amount })
@@ -113,8 +120,9 @@ describe.only('CRUD Order test', () => {
         });
     }
   });
-
+  // post an order with valid data, the stock of that product should decrease accordingly
   it('POST /Orders with UUID --> created order ', async () => {
+    // alter the post data to be different from the last test case, make the amount extremely big
     const ID = uuidv4();
     const book_ID = 252;
     const amount = 100000;
@@ -160,6 +168,7 @@ describe.only('CRUD Order test', () => {
     }
   });
 
+  // post an order without specifing the amount, it should return error code 400 with message 'Order at least 1 book'
   it('POST /Orders with UUID (without amount) --> req error ( 400,Order at least 1 book)', () => {
     const ID = uuidv4();
     return request(baseUrl)
@@ -176,6 +185,7 @@ describe.only('CRUD Order test', () => {
       });
   });
 
+  // post an order with amount set to 0, it should return error code 400 with message 'Order at least 1 book'
   it('POST /Orders with UUID (amount:0) --> req error ( 400,Order at least 1 book)', async () => {
     const ID = uuidv4();
     return request(baseUrl)
@@ -192,6 +202,7 @@ describe.only('CRUD Order test', () => {
       });
   });
 
+  // post an order with inexist book, it should return error code 409 with message 'Sold out, sorry'
   it('POST /Orders with UUID (inexist book) --> req error ( 409,Sold out, sorry)', async () => {
     const ID = uuidv4();
     return request(baseUrl)
