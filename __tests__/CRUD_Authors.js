@@ -1,7 +1,7 @@
 import request from 'supertest';
 const baseUrl =
   'https://my-bookshop-srv-shiny-mouse-nf.cfapps.us10.hana.ondemand.com/catalog';
-// const baseUrl = 'localhost:4004/catalog';
+// const baseUrl = 'localhost:4004/catalog';mimi
 
 describe('CRUD authors test', () => {
   it('GET /Authors --> array authors', () => {
