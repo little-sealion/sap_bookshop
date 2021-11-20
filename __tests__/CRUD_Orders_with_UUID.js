@@ -4,7 +4,7 @@ const baseUrl =
   'https://my-bookshop-srv-shiny-mouse-nf.cfapps.us10.hana.ondemand.com/catalog';
 
 describe.only('CRUD Order test', () => {
-  // if we post an order with invalid UUID, it should return error code 400
+  // if we post an order with invalid UUID, it should return error code 400 mi
   it('POST /Orders with UUID (invalid UUID) --> req error ( 400,Invalid Value)', () => {
     // using uuidv4 to create a UUID, then slice it to get an invalid UUID
     const ID = uuidv4().slice(0, 30);
