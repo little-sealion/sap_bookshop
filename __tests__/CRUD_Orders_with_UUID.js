@@ -6,7 +6,7 @@ const baseUrl =
 describe.only('CRUD Order test', () => {
   // if we post an order with invalid UUID, it should return error code 400
   it('POST /Orders with UUID (invalid UUID) --> req error ( 400,Invalid Value)', () => {
-    // using uuidv4 to create a UUID, then slice it to get an invalid UUID
+    // using uuidv4 to create a UUID, then slice it to get an invalid UUID mimi
     const ID = uuidv4().slice(0, 30);
     const book_ID = 251;
     const amount = 1;
