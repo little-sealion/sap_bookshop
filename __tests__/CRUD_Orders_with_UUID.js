@@ -35,9 +35,6 @@ describe.only('CRUD Order test', () => {
       .post('/Orders')
       .send({ ID, book_ID, amount });
 
-    expect(ID).toMatch(
-      /\b[0-9a-f]{8}\b-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-\b[0-9a-f]{12}\b/
-    );
     expect(res.statusCode).toBe(201);
     expect(res.body).toEqual(
       expect.objectContaining({
@@ -76,7 +73,7 @@ describe.only('CRUD Order test', () => {
   it('POST /Orders with UUID --> created order ', async () => {
     const ID = uuidv4();
     const book_ID = 252;
-    const amount = 3;
+    const amount = 1;
 
     // get the stock number of book_ID before post an order
     const res1 = await request(baseUrl).get(`/Books(${book_ID})`);
