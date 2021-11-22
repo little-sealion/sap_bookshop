@@ -12,16 +12,12 @@ describe('CRUD Books test', () => {
       .expect(200)
       .expect('Content-Type', /json/)
       .then((res) => {
-        expect(res.body.value).toEqual(
-          expect.arrayContaining([
-            expect.objectContaining({
-              ID: expect.any(Number),
-              title: expect.any(String),
-              author_ID: expect.any(Number),
-              stock: expect.any(Number),
-            }),
-          ])
-        );
+        let books = res.body.value;
+        expect(books.length).toBeGreaterThan(0);
+        let book = books.find((book) => book.ID === 255);
+        expect(book.title).toBe('Head First Java -- 11% discount!');
+        expect(book.author_ID).toBe(101);
+
         // for each book in the returned array,if the stock of that book is > 111, then the book title should end with '-- 11% discount!'
         res.body.value.forEach((book) => {
           if (book.stock > 111) {
@@ -35,14 +31,14 @@ describe('CRUD Books test', () => {
   // with that specific ID
   it('GET /Books(id) -->  specific book by ID', () => {
     return request(baseUrl)
-      .get('/Books(252)')
+      .get('/Books(255)')
       .expect(200)
       .expect('Content-Type', /json/)
       .then((res) => {
         expect(res.body).toEqual(
           expect.objectContaining({
-            ID: 252,
-            title: expect.any(String),
+            ID: 255,
+            title: 'Head First Java -- 11% discount!',
             author_ID: expect.any(Number),
             stock: expect.any(Number),
           })
@@ -63,5 +59,47 @@ describe('CRUD Books test', () => {
           error: { code: '404', message: 'Not Found' },
         });
       });
+  });
+
+  it('Post /Books --> create a new book with ID=1000', () => {
+    const ID = 1000;
+    const title = 'Why Women Kill';
+    const author_ID = 101;
+    const stock = 100;
+    return request(baseUrl)
+      .post('/Books')
+      .send({ ID, title, author_ID, stock })
+      .expect(201)
+      .expect('Content-Type', /json/)
+      .then((res) => {
+        expect(res.body).toEqual(
+          expect.objectContaining({
+            ID: 1000,
+            title: 'Why Women Kill',
+            author_ID: 101,
+            stock: 100,
+          })
+        );
+      });
+  });
+
+  it('Put /Books(1000) --> update book info', () => {
+    return request(baseUrl)
+      .put('/Books(1000)')
+      .send({ title: 'Do not kill', stock: 20 })
+      .expect(200)
+      .expect('Content-Type', /json/)
+      .then((res) => {
+        expect(res.body).toEqual(
+          expect.objectContaining({
+            title: 'Do not kill',
+            stock: 20,
+          })
+        );
+      });
+  });
+
+  it('Delete /Books(1000) --> delete an exisiting book', () => {
+    return request(baseUrl).delete('/Books(1000)').expect(204);
   });
 });

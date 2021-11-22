@@ -4,23 +4,31 @@ const baseUrl =
   'https://my-bookshop-srv-shiny-mouse-nf.cfapps.us10.hana.ondemand.com/catalog';
 
 describe.only('CRUD Order test', () => {
+  // set up the test enviroment by updateing book(ID255) stock to be 100
+  beforeEach(async () => {
+    // make a post request to create an test author first, this author should have no book associated with her
+    const title = 'Head First Java';
+    const author_ID = 101;
+    const stock = 100;
+    await request(baseUrl)
+      .put('/Books(201)')
+      .send({ title, author_ID, stock })
+      .catch((err) => console.log(err.message));
+  });
+
   // if we post an order with invalid UUID, it should return error code 400
   it('POST /Orders with UUID (invalid UUID) --> req error ( 400,Invalid Value)', () => {
     // using uuidv4 to create a UUID, then slice it to get an invalid UUID mimi
     const ID = uuidv4().slice(0, 30);
-    const book_ID = 251;
+    const book_ID = 201;
     const amount = 1;
     return request(baseUrl)
       .post('/Orders')
       .send({ ID, book_ID, amount })
       .expect(400)
       .then((res) => {
-        expect(res.body).toEqual({
-          error: {
-            code: '400',
-            message: `Deserialization Error: Invalid value ${ID} (JavaScript string) for property \"ID\". A string value in the format 8HEXDIG-4HEXDIG-4HEXDIG-4HEXDIG-12HEXDIG must be specified as value for type Edm.Guid.`,
-          },
-        });
+        expect(res.body.error.code).toBe('400');
+        expect(res.body.error.message).toMatch(/Invalid value/);
       });
   });
 
@@ -28,8 +36,8 @@ describe.only('CRUD Order test', () => {
   // should be an object contains ID, book_ID, amount fields
   it('POST /Orders with UUID (valid UUID) --> created order', async () => {
     const ID = uuidv4();
-    const book_ID = 251;
-    const amount = 1;
+    const book_ID = 201;
+    const amount = 10;
 
     const res = await request(baseUrl)
       .post('/Orders')
@@ -39,8 +47,8 @@ describe.only('CRUD Order test', () => {
     expect(res.body).toEqual(
       expect.objectContaining({
         ID,
-        book_ID,
-        amount,
+        book_ID: 201,
+        amount: 10,
       })
     );
   });
@@ -50,7 +58,7 @@ describe.only('CRUD Order test', () => {
   it('POST /Orders with UUID (repeat valid UUID) --> 400, Entity already exists', async () => {
     // create the uuid
     const ID = uuidv4();
-    const book_ID = 251;
+    const book_ID = 201;
     const amount = 1;
     //post the order for the first time
     await request(baseUrl).post('/Orders').send({ ID, book_ID, amount }); //use the uuid first time
@@ -60,109 +68,55 @@ describe.only('CRUD Order test', () => {
       .post('/Orders')
       .send({ ID, book_ID, amount });
 
-    expect(res.statusCode).toBe(400);
-    expect(res.body).toEqual({
-      error: expect.objectContaining({
-        code: '400',
-        message: 'Entity already exists',
-      }),
-    });
+    expect(res.body.error.code).toBe('400');
+    expect(res.body.error.message).toMatch(/Entity already exists/);
   });
 
-  // post an order with invalid data, the stock of that product should decrease accordingly
-  it('POST /Orders with UUID --> created order ', async () => {
+  // post an order with amount less than stock, it should create a new order
+  it('POST /Orders with UUID --> create a new order ', async () => {
     const ID = uuidv4();
-    const book_ID = 252;
-    const amount = 1;
-
-    // get the stock number of book_ID before post an order
-    const res1 = await request(baseUrl).get(`/Books(${book_ID})`);
-    const { stock } = res1.body;
+    const book_ID = 201;
+    const amount = 10;
 
     // if the product stock is larger than the post amount, it should return sucess code 201, and return the created order object
-    if (stock >= amount) {
-      const res2 = await request(baseUrl).post('/Orders').send({
+
+    const res = await request(baseUrl).post('/Orders').send({
+      ID,
+      book_ID,
+      amount,
+    });
+
+    expect(res.statusCode).toBe(201);
+    // if the order post sucessfully, the product stock should decrease accordingly
+    expect(res.body).toEqual(
+      expect.objectContaining({
         ID,
-        book_ID,
-        amount,
-      });
-
-      expect(res2.statusCode).toBe(201);
-      // if the order post sucessfully, the product stock should decrease accordingly
-      expect(res2.body).toEqual(
-        expect.objectContaining({
-          ID,
-          book_ID,
-          amount,
-        })
-      );
-
-      const res3 = await request(baseUrl).get(`/Books(${book_ID})`);
-      const { stock: updatedStock } = res3.body;
-
-      expect(stock - updatedStock).toEqual(amount);
-    } else {
-      // if the product stock is less than the post amount, it should return error code 409 with message 'Sold out, sorry'
-      return request(baseUrl)
-        .post('/Orders')
-        .send({ ID, book_ID, amount })
-        .expect(409)
-        .then((res) => {
-          expect(res.body).toEqual({
-            error: expect.objectContaining({
-              code: '409',
-              message: 'Sold out, sorry',
-            }),
-          });
-        });
-    }
+        book_ID: 201,
+        amount: 10,
+      })
+    );
+    // send a get request to get the new stock of the specific book
+    const res2 = await request(baseUrl).get(`/Books(${book_ID})`);
+    const { stock: updatedStock } = res2.body;
+    // console.log('updatedStock', updatedStock);
+    // the original stock was set to be 100
+    expect(100 - updatedStock).toEqual(amount);
   });
-  // post an order with valid data, the stock of that product should decrease accordingly
-  it('POST /Orders with UUID --> created order ', async () => {
+
+  // post an order with amount exceeds stock, it should return error 409
+  it('POST /Orders with UUID --> return error 409 ', async () => {
     // alter the post data to be different from the last test case, make the amount extremely big
     const ID = uuidv4();
-    const book_ID = 252;
-    const amount = 100000;
+    const book_ID = 201;
+    const amount = 200;
 
-    // get the stock number of book_ID before post an order
-    const res1 = await request(baseUrl).get(`/Books(${book_ID})`);
-    const { stock } = res1.body;
-
-    if (stock >= amount) {
-      const res2 = await request(baseUrl).post('/Orders').send({
-        ID,
-        book_ID,
-        amount,
+    return request(baseUrl)
+      .post('/Orders')
+      .send({ ID, book_ID, amount })
+      .expect(409)
+      .then((res) => {
+        expect(res.body.error.message).toMatch(/Sold out/);
       });
-
-      expect(res2.statusCode).toBe(201);
-      // expect(res2.headers['conent-type']).toMatch(/json/);
-      expect(res2.body).toEqual(
-        expect.objectContaining({
-          ID,
-          book_ID,
-          amount, //if stock lasts, return created order , otherwise return sold out
-        })
-      );
-
-      const res3 = await request(baseUrl).get(`/Books(${book_ID})`);
-      const { stock: updatedStock } = res3.body;
-
-      expect(stock - updatedStock).toEqual(amount);
-    } else {
-      return request(baseUrl)
-        .post('/Orders')
-        .send({ ID, book_ID, amount })
-        .expect(409)
-        .then((res) => {
-          expect(res.body).toEqual({
-            error: expect.objectContaining({
-              code: '409',
-              message: 'Sold out, sorry',
-            }),
-          });
-        });
-    }
   });
 
   // post an order without specifing the amount, it should return error code 400 with message 'Order at least 1 book'
@@ -170,7 +124,7 @@ describe.only('CRUD Order test', () => {
     const ID = uuidv4();
     return request(baseUrl)
       .post('/Orders')
-      .send({ ID, book_ID: 252 })
+      .send({ ID, book_ID: 201 })
       .expect(400)
       .then((res) => {
         expect(res.body).toEqual({
@@ -187,7 +141,7 @@ describe.only('CRUD Order test', () => {
     const ID = uuidv4();
     return request(baseUrl)
       .post('/Orders')
-      .send({ ID, book_ID: 252, amount: 0 })
+      .send({ ID, book_ID: 201, amount: 0 })
       .expect(400)
       .then((res) => {
         expect(res.body).toEqual({
